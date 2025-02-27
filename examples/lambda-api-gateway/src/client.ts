@@ -1,15 +1,13 @@
-import { createTRPCClient, createTRPCClientProxy } from '@trpc/client';
-import fetch from 'node-fetch';
+import { createTRPCClient, httpBatchLink } from '@trpc/client';
 import type { AppRouter } from './server';
 
-global.fetch = fetch as any;
+const client = createTRPCClient<AppRouter>({
+  links: [httpBatchLink({ url: 'http://localhost:4050' })],
+});
 
-const client = createTRPCClient<AppRouter>({ url: 'http://127.0.0.1:4050' });
-const proxy = createTRPCClientProxy(client);
-
-(async () => {
+void (async () => {
   try {
-    const q = await proxy.greet.query({ name: 'Erik' });
+    const q = await client.greet.query({ name: 'Erik' });
     console.log(q);
   } catch (error) {
     console.log('error', error);

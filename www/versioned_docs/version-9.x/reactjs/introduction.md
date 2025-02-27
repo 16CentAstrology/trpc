@@ -9,6 +9,7 @@ slug: /react
 
 - If you're using Next.js, read the [Usage with Next.js](nextjs) guide instead.
 - In order to infer types from your Node.js backend you should have the frontend & backend in the same monorepo.
+
 :::
 
 ## Add tRPC to existing React project
@@ -64,6 +65,7 @@ Follow the [Quickstart](quickstart) and read the [`@trpc/server` docs](router) f
 ```bash
 yarn add @trpc/client @trpc/server @trpc/react react-query@3
 ```
+
 - @trpc/server: This is a peer dependency of `@trpc/client` so you have to install it again!
 - Tanstack's React Query: @trpc/react provides a thin wrapper over @tanstack/react-query. It is required as a peer dependency.
 
@@ -85,8 +87,7 @@ export const trpc = createReactQueryHooks<AppRouter>();
 In your `App.tsx`
 
 ```tsx title='App.tsx'
-import React from 'react';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { trpc } from './utils/trpc';
 
@@ -127,5 +128,5 @@ export default function IndexPage() {
       <p>{hello.data.greeting}</p>
     </div>
   );
-};
+}
 ```

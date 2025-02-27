@@ -31,6 +31,7 @@ export const client = createTRPCClient<AppRouter>({
   transformer: superjson,
 });
 ```
+
 ```ts title='pages/_app.tsx'
 import superjson from 'superjson';
 
@@ -41,25 +42,24 @@ export default withTRPC<AppRouter>({
     return {
       // [...]
       transformer: superjson,
-    }
-  }
+    };
+  },
 })(MyApp);
 ```
 
 #### 3. Add to your `AppRouter`
 
 ```ts title='server/routers/_app.ts'
-import superjson from 'superjson';
 import * as trpc from '@trpc/server';
+import superjson from 'superjson';
 
-export const appRouter = trpc.router()
-  .transformer(superjson)
-  // .query(...)
+export const appRouter = trpc.router().transformer(superjson);
+// .query(...)
 ```
 
 ## Different transformers for upload and download
 
-If a transformer should only be used for one directon or different transformers should be used for upload and download (e.g. for performance reasons), you can provide individual transformers for upload and download. Make sure you use the same combined transformer everywhere.
+If a transformer should only be used for one direction or different transformers should be used for upload and download (e.g. for performance reasons), you can provide individual transformers for upload and download. Make sure you use the same combined transformer everywhere.
 
 ### How to
 
@@ -74,15 +74,15 @@ yarn add superjson devalue
 #### 2. Add to `utils/trpc.ts`
 
 ```ts title='utils/trpc.ts'
+import { uneval } from 'devalue';
 import superjson from 'superjson';
-import devalue from 'devalue';
 
 // [...]
 
 export const transformer = {
   input: superjson,
   output: {
-    serialize: (object) => devalue(object),
+    serialize: (object) => uneval(object),
     deserialize: (object) => eval(`(${object})`),
   },
 };
@@ -104,14 +104,12 @@ export const client = createTRPCClient<AppRouter>({
 #### 4. Add to your `AppRouter`
 
 ```ts title='server/routers/_app.ts'
-import { transformer } from '../../utils/trpc';
 import * as trpc from '@trpc/server';
+import { transformer } from '../../utils/trpc';
 
-export const appRouter = trpc.router()
-  .transformer(transformer)
-  // .query(...)
+export const appRouter = trpc.router().transformer(transformer);
+// .query(...)
 ```
-
 
 ## `DataTransformer` interface
 
