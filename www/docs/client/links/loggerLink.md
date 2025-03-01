@@ -2,20 +2,20 @@
 id: loggerLink
 title: Logger Link
 sidebar_label: Logger Link
-slug: /links/loggerLink
+slug: /client/links/loggerLink
 ---
 
-`loggerLink` is a link that lets you implement a logger for your tRPC client. It allows you to see more clearly what operations are queries, mutations or subscriptions, their requests and responses. The link, by default, prints a prettified log to the browser's console. However, you can customize the logging behavior and the way it prints to the console with your own implementations.
+`loggerLink` is a link that lets you implement a logger for your tRPC client. It allows you to see more clearly what operations are queries, mutations, or subscriptions, their requests, and responses. The link, by default, prints a prettified log to the browser's console. However, you can customize the logging behavior and the way it prints to the console with your own implementations.
 
 ## Usage
 
 You can import and add the `loggerLink` to the `links` array as such:
 
 ```ts title="client/index.ts"
-import { createTRPCProxyClient, httpBatchLink, loggerLink } from '@trpc/client';
+import { createTRPCClient, httpBatchLink, loggerLink } from '@trpc/client';
 import type { AppRouter } from '../server';
 
-const client = createTRPCProxyClient<AppRouter>({
+const client = createTRPCClient<AppRouter>({
   links: [
     /**
      * The function passed to enabled is an example in case you want to the link to
@@ -50,9 +50,14 @@ type LoggerLinkOptions<TRouter extends AnyRouter> = {
    * Used in the built-in defaultLogger
    */
   console?: ConsoleEsque;
+  /**
+   * Color mode used in the default logger.
+   * @default typeof window === 'undefined' ? 'ansi' : 'css'
+   */
+  colorMode?: 'ansi' | 'css';
 };
 ```
 
 ## Reference
 
-You can check out the source code for this link on [GitHub.](https://github.com/trpc/trpc/blob/next/packages/client/src/links/loggerLink.ts)
+You can check out the source code for this link on [GitHub.](https://github.com/trpc/trpc/blob/main/packages/client/src/links/loggerLink.ts)

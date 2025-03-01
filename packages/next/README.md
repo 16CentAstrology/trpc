@@ -1,13 +1,15 @@
 <p align="center">
-  <a href="https://trpc.io/"><img src="../../www/static/img/logo-text.svg" alt="tRPC" height="130"/></a>
+  <a href="https://trpc.io/"><img src="https://assets.trpc.io/icons/svgs/blue-bg-rounded.svg" alt="tRPC" height="75"/></a>
 </p>
+
+<h3 align="center">tRPC</h3>
 
 <p align="center">
   <strong>End-to-end typesafe APIs made easy</strong>
 </p>
 
 <p align="center">
-  <img src="https://assets.trpc.io/www/v10/preview-dark.gif" alt="Demo" />
+  <img src="https://assets.trpc.io/www/v10/v10-dark-landscape.gif" alt="Demo" />
 </p>
 
 # `@trpc/next`
@@ -16,19 +18,22 @@
 
 ## Documentation
 
-Full documentation for `@trpc/next` can be found [here](https://trpc.io/docs/nextjs)
+Full documentation for `@trpc/next` can be found [here](https://trpc.io/docs/client/nextjs)
 
 ## Installation
 
 ```bash
 # npm
-npm install @trpc/next @trpc/react-query @tanstack/react-query
+npm install @trpc/next@next @trpc/react-query@next @tanstack/react-query
 
 # Yarn
-yarn add @trpc/next @trpc/react-query @tanstack-react-query
+yarn add @trpc/next@next @trpc/react-query@next @tanstack/react-query
 
 # pnpm
-pnpm add @trpc/next @trpc/react-query @tanstack/react-query
+pnpm add @trpc/next@next @trpc/react-query@next @tanstack/react-query
+
+# Bun
+bun add @trpc/next@next @trpc/react-query@next @tanstack/react-query
 ```
 
 ## Basic Example
@@ -50,7 +55,7 @@ export const trpc = createTRPCNext<AppRouter>({
       ],
     };
   },
-  ssr: true,
+  ssr: false,
 });
 ```
 
@@ -87,3 +92,7 @@ export function Hello() {
   return <div>{data && <p>{data.greeting}</p>}</div>;
 }
 ```
+
+## Server components
+
+See https://trpc.io/docs/client/react/server-components

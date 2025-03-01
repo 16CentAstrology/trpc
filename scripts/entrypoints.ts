@@ -5,15 +5,20 @@ import prettier from 'prettier';
 // minimal version of PackageJson type necessary
 export type PackageJson = {
   name: string;
-  exports: Record<string, { import: string; require: string; default: string }>;
+  exports: Record<
+    string,
+    { import: string; require: string; default: string } | string
+  >;
   files: string[];
   dependencies: Record<string, string>;
   pnpm: {
     overrides: Record<string, string>;
   };
+  funding: string[];
+  peerDependencies: Record<string, string>;
 };
 
-// create directories on the way if they dont exist
+// create directories on the way if they don't exist
 function writeFileSyncRecursive(filePath: string, content: string) {
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) {
@@ -22,14 +27,17 @@ function writeFileSyncRecursive(filePath: string, content: string) {
   fs.writeFileSync(filePath, content, 'utf8');
 }
 
-export function generateEntrypoints(inputs: string[]) {
+export async function generateEntrypoints(rawInputs: string[]) {
+  const inputs = [...rawInputs];
   // set some defaults for the package.json
-  const pkgJson: PackageJson = JSON.parse(
-    fs.readFileSync(path.resolve('package.json'), 'utf8'),
-  );
+
+  const pkgJsonPath = path.resolve('package.json');
+
+  const pkgJson: PackageJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
 
   pkgJson.files = ['dist', 'src', 'README.md'];
   pkgJson.exports = {
+    './package.json': './package.json',
     '.': {
       import: './dist/index.mjs',
       require: './dist/index.js',
@@ -37,31 +45,37 @@ export function generateEntrypoints(inputs: string[]) {
     },
   };
 
+  // Added to turbo.json pipeline output to ensure cache works
+  const scriptOutputs = new Set<string>();
+  scriptOutputs.add('package.json');
+  scriptOutputs.add('dist/**');
+
   /** Parse the inputs to get the user-import-paths, e.g.
-   *   src/adapters/aws-lambda/index.ts -> adapters/aws-lambda
-   *   src/adapters/express.ts -> adapters/express
+   *  src/adapters/aws-lambda/index.ts -> adapters/aws-lambda
+   *  src/adapters/express.ts -> adapters/express
    *
    *  Also, write to the package.json exports field, e.g.
-   *   src/adapters/aws-lambda/index.ts -> exports['adapters/aws-lambda'] = { import: './dist/adapters/aws-lambda/index.mjs', ... }
-   *   src/adapters/express.ts -> exports['adapters/express'] = { import: './dist/adapters/express.mjs', ... }
+   *  src/adapters/aws-lambda/index.ts -> exports['adapters/aws-lambda'] = { import: './dist/adapters/aws-lambda/index.mjs', ... }
+   *  src/adapters/express.ts -> exports['adapters/express'] = { import: './dist/adapters/express.mjs', ... }
    */
   inputs
     .filter((i) => i !== 'src/index.ts') // index included by default above
+    .sort()
     .forEach((i) => {
       // first, exclude 'src' part of the path
       const parts = i.split('/').slice(1);
       const pathWithoutSrc = parts.join('/');
 
       // if filename is index.ts, importPath is path until index.ts,
-      // otherwise, importPath is the path without the fileextension
+      // otherwise, importPath is the path without the file extension
       const importPath =
         parts.at(-1) === 'index.ts'
           ? parts.slice(0, -1).join('/')
-          : pathWithoutSrc.replace(/\.ts$/, '');
+          : pathWithoutSrc.replace(/\.(ts|tsx)$/, '');
 
       // write this entrypoint to the package.json exports field
-      const esm = './dist/' + pathWithoutSrc.replace(/\.ts$/, '.mjs');
-      const cjs = './dist/' + pathWithoutSrc.replace(/\.ts$/, '.js');
+      const esm = './dist/' + pathWithoutSrc.replace(/\.(ts|tsx)$/, '.mjs');
+      const cjs = './dist/' + pathWithoutSrc.replace(/\.(ts|tsx)$/, '.js');
       pkgJson.exports[`./${importPath}`] = {
         import: esm,
         require: cjs,
@@ -70,11 +84,14 @@ export function generateEntrypoints(inputs: string[]) {
 
       // create the barrelfile, linking the declared exports to the compiled files in dist
       const importDepth = importPath.split('/').length || 1;
-      const resolvedImport = path.join(
+
+      // in windows, "path.join" uses backslashes, it leads escape characters
+      const resolvedImport = [
         ...Array(importDepth).fill('..'),
         'dist',
         importPath,
-      );
+      ].join('/');
+
       // index.js
       const indexFile = path.resolve(importPath, 'index.js');
       const indexFileContent = `module.exports = require('${resolvedImport}');\n`;
@@ -94,13 +111,33 @@ export function generateEntrypoints(inputs: string[]) {
     if (!topLevel) return;
     if (pkgJson.files.includes(topLevel)) return;
     pkgJson.files.push(topLevel);
+
+    if (topLevel !== 'package.json') scriptOutputs.add(topLevel + '/**');
   });
 
+  // Exclude test files in builds
+  pkgJson.files.push('!**/*.test.*');
+  pkgJson.files.push('!**/__tests__');
+  // Add `funding` in all packages
+  pkgJson.funding = ['https://trpc.io/sponsor'];
+
+  // Add `peerDependencies` in all packages
+  pkgJson.peerDependencies ??= {};
+  pkgJson.peerDependencies['typescript'] = '>=5.7.2';
+
   // write package.json
-  const formattedPkgJson = prettier.format(JSON.stringify(pkgJson), {
+  const formattedPkgJson = await prettier.format(JSON.stringify(pkgJson), {
     parser: 'json-stringify',
-    printWidth: 80,
-    endOfLine: 'auto',
+    ...(await prettier.resolveConfig(pkgJsonPath)),
   });
-  fs.writeFileSync(path.resolve('package.json'), formattedPkgJson, 'utf8');
+  fs.writeFileSync(pkgJsonPath, formattedPkgJson, 'utf8');
+
+  const turboPath = path.resolve('turbo.json');
+  const turboJson = JSON.parse(fs.readFileSync(turboPath, 'utf8'));
+  turboJson.tasks['codegen-entrypoints'].outputs = [...scriptOutputs];
+  const formattedTurboJson = await prettier.format(JSON.stringify(turboJson), {
+    parser: 'json',
+    ...(await prettier.resolveConfig(turboPath)),
+  });
+  fs.writeFileSync(turboPath, formattedTurboJson, 'utf8');
 }

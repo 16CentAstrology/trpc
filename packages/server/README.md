@@ -1,13 +1,15 @@
 <p align="center">
-  <a href="https://trpc.io/"><img src="../../www/static/img/logo-text.svg" alt="tRPC" height="130"/></a>
+  <a href="https://trpc.io/"><img src="https://assets.trpc.io/icons/svgs/blue-bg-rounded.svg" alt="tRPC" height="75"/></a>
 </p>
+
+<h3 align="center">tRPC</h3>
 
 <p align="center">
   <strong>End-to-end typesafe APIs made easy</strong>
 </p>
 
 <p align="center">
-  <img src="https://assets.trpc.io/www/v10/preview-dark.gif" alt="Demo" />
+  <img src="https://assets.trpc.io/www/v10/v10-dark-landscape.gif" alt="Demo" />
 </p>
 
 # `@trpc/server`
@@ -22,13 +24,16 @@ Full documentation for `@trpc/server` can be found [here](https://trpc.io/docs/r
 
 ```bash
 # npm
-npm install @trpc/server
+npm install @trpc/server@next
 
 # Yarn
-yarn add @trpc/server
+yarn add @trpc/server@next
 
 # pnpm
-pnpm add @trpc/server
+pnpm add @trpc/server@next
+
+# Bun
+bun add @trpc/server@next
 ```
 
 We also recommend installing `zod` to validate procedure inputs.
@@ -36,7 +41,7 @@ We also recommend installing `zod` to validate procedure inputs.
 ## Basic Example
 
 ```ts
-import { inferAsyncReturnType, initTRPC } from '@trpc/server';
+import { initTRPC } from '@trpc/server';
 import {
   CreateHTTPContextOptions,
   createHTTPServer,
@@ -49,10 +54,10 @@ function createContext(opts: CreateHTTPContextOptions) {
 }
 
 // Get the context type
-type Context = inferAsyncReturnType<typeof createContext>;
+type Context = Awaited<ReturnType<typeof createContext>>;
 
 // Initialize tRPC
-const t = initTRPC.context<Context>.create();
+const t = initTRPC.context<Context>().create();
 
 // Create main router
 const appRouter = t.router({

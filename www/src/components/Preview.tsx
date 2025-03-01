@@ -1,8 +1,9 @@
 import React from 'react';
+import { handleSmoothScrollToSection } from '../utils/handleSmoothScrollToSection';
 
 export const Preview = () => {
   return (
-    <div className="flex justify-center pt-12">
+    <div className="flex justify-center pt-12 lg:pt-16">
       <figure>
         <video
           autoPlay
@@ -10,7 +11,8 @@ export const Preview = () => {
           muted
           playsInline
           width="1200px"
-          className="border-6 shadow-xl rounded-lg bg-[#111111] border-[#111111] trpcgif trpcgif--v10 trpcgif--portrait"
+          className="rounded-lg border-4 border-neutral-900 bg-neutral-900 shadow-xl md:hidden"
+          poster="https://assets.trpc.io/www/v10/preview-dark.png"
         >
           <source
             src="https://assets.trpc.io/www/v10/preview-dark.mp4"
@@ -18,29 +20,27 @@ export const Preview = () => {
           />
           You need a browser that supports HTML5 video to view this video.
         </video>
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          width="1200px"
-          className="border-[20px] shadow-xl rounded-lg bg-[#111111] border-[#111111] trpcgif trpcgif--v10 trpcgif--landscape"
+        <a
+          href="#try-it-out"
+          className="hidden rounded-lg border-[20px] border-neutral-900 bg-neutral-900 shadow-[0px_-24px_300px_0px_rgba(57,140,203,0.15)] transition hover:shadow-[0px_-24px_150px_0px_rgba(57,140,203,0.3)] md:block"
+          title="Click to try it out"
+          onClick={handleSmoothScrollToSection}
         >
-          <source
-            src="https://assets.trpc.io/www/v10/v10-dark-landscape.mp4"
-            type="video/mp4"
-          />
-          You need a browser that supports HTML5 video to view this video.
-        </video>
-        <img
-          src="https://assets.trpc.io/www/v9/trpcgif.gif"
-          alt="Demo"
-          className="trpcgif trpcgif--v9"
-        />
-        <figcaption className="pt-3 text-sm text-center text-gray-400 transition group-hover:text-gray-900">
-          The client above is <strong>not</strong> importing any code from the
-          server, only its type declarations.
-        </figcaption>
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            width="1200px"
+            poster="https://assets.trpc.io/www/v10/v10-dark-landscape.png"
+          >
+            <source
+              src="https://assets.trpc.io/www/v10/v10-dark-landscape.mp4"
+              type="video/mp4"
+            />
+            You need a browser that supports HTML5 video to view this video.
+          </video>
+        </a>
       </figure>
     </div>
   );

@@ -1,44 +1,43 @@
-name: Lint
-
-on: [push]
+name: autofix.ci # for "security reasons", this has to be named autofix.ai
+permissions:
+  contents: read
+on:
+  pull_request:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-jobs:
-  lint:
-    runs-on: ubuntu-latest
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
+jobs:
+  autofix:
+    name: 'Lint and auto-fix'
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: ./.github/setup
 
-      - uses: pnpm/action-setup@v2.2.4
+      - name: Run ts-prune
+        run: pnpm lint-prune
 
-      - uses: actions/setup-node@v3
+      # <autofixing>
+      - run: pnpm turbo lint -- --fix
+        if: ${{ failure() || success() }}
+      - run: pnpm manypkg fix
+        if: ${{ failure() || success() }}
+      - run: pnpm format-fix
+        if: ${{ failure() || success() }}
+      # </autofixing>
+
+      # commit autofixes
+      - uses: autofix-ci/action@551dded8c6cc8a1054039c8bc0b8b48c51dfc6ef
+        if: ${{ failure() || success() }}
         with:
-          node-version: 16.x
-
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        run: |
-          echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - uses: actions/cache@v3
-        name: Setup pnpm cache
-        with:
-          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
-          key: ${{ runner.os }}-pnpm-store-all-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-all-
-
-      - name: Install deps (with cache)
-        run: pnpm install --child-concurrency 3
-
-      - name: Run ESLint
-        run: pnpm lint
-
-      - name: Run Manypkg
-        run: pnpm manypkg check
+          commit-message: 'chore: apply lint and formatting fixes'
+          fail-fast: false
