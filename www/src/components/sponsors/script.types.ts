@@ -6,6 +6,7 @@ export interface PageInfo {
 }
 
 export interface SponsorEntity {
+  __typename: string;
   id: string;
   name: string | null;
   login: string;
@@ -34,10 +35,6 @@ export interface SponsorshipsAsMaintainer {
   edges: Edge[];
 }
 
-export interface Viewer {
+export interface SponsorEsque {
   sponsorshipsAsMaintainer: SponsorshipsAsMaintainer;
-}
-
-export interface RootObject {
-  viewer: Viewer;
 }

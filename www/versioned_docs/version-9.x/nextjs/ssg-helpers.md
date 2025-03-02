@@ -24,7 +24,7 @@ const {
 });
 ```
 
-The returned functions are all wrappers around react-query functions. Please check out [their docs](https://react-query.tanstack.com/overview) to learn more about them.
+The returned functions are all wrappers around react-query functions. Please check out [their docs](https://tanstack.com/query/v3/docs/react/overview) to learn more about them.
 
 ## Next.js Example
 
@@ -33,8 +33,8 @@ import { createSSGHelpers } from '@trpc/react/ssg';
 import { GetServerSidePropsContext, InferGetServerSidePropsType } from 'next';
 import { createContext, prisma } from 'server/context';
 import { appRouter } from 'server/routers/_app';
-import { trpc } from 'utils/trpc';
 import superjson from 'superjson';
+import { trpc } from 'utils/trpc';
 
 export async function getServerSideProps(
   context: GetServerSidePropsContext<{ id: string }>,

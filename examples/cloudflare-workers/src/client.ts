@@ -1,25 +1,14 @@
-import {
-  createTRPCClient,
-  createTRPCClientProxy,
-  httpBatchLink,
-  loggerLink,
-} from '@trpc/client';
-import fetch from 'node-fetch';
+import { createTRPCClient, httpBatchLink, loggerLink } from '@trpc/client';
 import type { AppRouter } from './router';
-
-// polyfill
-globalThis.fetch = fetch as any;
 
 const sleep = (ms = 100) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function main() {
-  const url = 'http://localhost:8787';
+  const url = 'http://127.0.0.1:8787/trpc';
 
-  const client = createTRPCClient<AppRouter>({
+  const proxy = createTRPCClient<AppRouter>({
     links: [loggerLink(), httpBatchLink({ url })],
   });
-
-  const proxy = createTRPCClientProxy(client);
 
   await sleep();
 
@@ -44,4 +33,4 @@ async function main() {
   console.log('👌 should be a clean exit if everything is working right');
 }
 
-main();
+main().catch(console.error);

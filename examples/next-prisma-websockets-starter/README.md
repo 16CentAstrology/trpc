@@ -1,10 +1,6 @@
 # Prisma + tRPC + WebSockets
 
-> ℹ️ WebSockets is a beta feature & may change without major version bump ℹ️
-
-
-- Try demo http://websockets.trpc.io/
-
+Try demo http://websockets.trpc.io/
 
 ## Features
 
@@ -19,25 +15,14 @@
   - ✅ E2E testing with [Playwright](https://playwright.dev/)
   - ✅ Linting
 
-
 ## Setup
 
 ```bash
-yarn create next-app --example https://github.com/trpc/trpc --example-path examples/next-prisma-starter-websockets trpc-prisma-starter-websockets
-cd trpc-prisma-starter-websockets
-yarn
-yarn dx
+pnpm create next-app --example https://github.com/trpc/trpc --example-path examples/next-prisma-websockets-starter trpc-prisma-websockets-starter
+cd trpc-prisma-websockets-starter
+pnpm i
+pnpm dx
 ```
-
-## Deployment
-
-### Using [Render](https://render.com/)
-
-The project contains a [`render.yaml`](./render.yaml) [*"Blueprint"*](https://render.com/docs/blueprint-spec) which makes the project easily deployable on [Render](https://render.com/).
-
-Go to [dashboard.render.com/blueprints](https://dashboard.render.com/blueprints) and connect to this Blueprint and see how the app and database automatically gets deployed.
-
-You will either need to create an environment group called `trpc-websockets` with environment variables or remove that from `render.yaml` in favor of manual environment variables that overrides the ones in `/.env`.
 
 ## Files of note
 
@@ -67,15 +52,16 @@ You will either need to create an environment group called `trpc-websockets` wit
 ## Commands
 
 ```bash
-yarn build      # runs `prisma generate` + `prisma migrate` + `next build`
-yarn db-nuke    # resets local db
-yarn dev        # starts next.js + WebSocket server
-yarn dx         # starts postgres db + runs migrations + seeds + starts next.js 
-yarn test-dev   # runs e2e tests on dev
-yarn test-start # runs e2e tests on `next start` - build required before
-yarn test:unit  # runs normal jest unit tests
-yarn test:e2e   # runs e2e tests
+pnpm build      # runs `prisma generate` + `prisma migrate` + `next build`
+pnpm db-nuke    # resets local db
+pnpm dev        # starts next.js + WebSocket server
+pnpm dx         # starts postgres db + runs migrations + seeds + starts next.js
+pnpm test-dev   # runs e2e tests on dev
+pnpm test-start # runs e2e tests on `next start` - build required before
+pnpm test:unit  # runs normal Vitest unit tests
+pnpm test:e2e   # runs e2e tests
 ```
+
 ---
 
 Created by [@alexdotjs](https://twitter.com/alexdotjs).

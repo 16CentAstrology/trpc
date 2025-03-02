@@ -5,13 +5,14 @@ sidebar_label: useMutation()
 slug: /react-mutations
 ---
 
-> The hooks provided by `@trpc/react` are a thin wrapper around React Query. For in-depth information about options and usage patterns, refer to their docs on [Mutations](https://react-query.tanstack.com/guides/mutations).
+> The hooks provided by `@trpc/react` are a thin wrapper around React Query. For in-depth information about options and usage patterns, refer to their docs on [Mutations](https://tanstack.com/query/v3/docs/react/guides/mutations).
 
-Works like react-query's mutations - [see their docs](https://react-query.tanstack.com/guides/mutations).
+Works like react-query's mutations - [see their docs](https://tanstack.com/query/v3/docs/react/guides/mutations).
 
 ### Example
 
-<details><summary>Backend code</summary>
+<details>
+<summary>Backend code</summary>
 
 ```tsx title='server/routers/_app.ts'
 import * as trpc from '@trpc/server';
@@ -57,7 +58,9 @@ export function MyComponent() {
   return (
     <div>
       <h1>Login Form</h1>
-      <button onClick={handleLogin} disabled={mutation.isLoading}>Login</button>
+      <button onClick={handleLogin} disabled={mutation.isLoading}>
+        Login
+      </button>
 
       {mutation.error && <p>Something went wrong! {mutation.error.message}</p>}
     </div>

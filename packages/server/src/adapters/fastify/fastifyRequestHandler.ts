@@ -1,11 +1,27 @@
-import { FastifyReply, FastifyRequest } from 'fastify';
-import { AnyRouter, inferRouterContext } from '../../core';
+/**
+ * If you're making an adapter for tRPC and looking at this file for reference, you should import types and functions from `@trpc/server` and `@trpc/server/http`
+ *
+ * @example
+ * ```ts
+ * import type { AnyTRPCRouter } from '@trpc/server'
+ * import type { HTTPBaseHandlerOptions } from '@trpc/server/http'
+ * ```
+ */
+import type { FastifyReply, FastifyRequest } from 'fastify';
+// @trpc/server
+import type { AnyRouter } from '../../@trpc/server';
+// @trpc/server/http
 import {
-  HTTPBaseHandlerOptions,
-  HTTPRequest,
-} from '../../http/internals/types';
-import { resolveHTTPResponse } from '../../http/resolveHTTPResponse';
-import { NodeHTTPCreateContextOption } from '../node-http';
+  resolveResponse,
+  type HTTPBaseHandlerOptions,
+  type ResolveHTTPRequestOptionsContextFn,
+} from '../../@trpc/server/http';
+// @trpc/server/node-http
+import type { NodeHTTPRequest } from '../node-http';
+import {
+  incomingMessageToRequest,
+  type NodeHTTPCreateContextOption,
+} from '../node-http';
 
 export type FastifyHandlerOptions<
   TRouter extends AnyRouter,
@@ -18,57 +34,48 @@ type FastifyRequestHandlerOptions<
   TRouter extends AnyRouter,
   TRequest extends FastifyRequest,
   TResponse extends FastifyReply,
-> = {
+> = FastifyHandlerOptions<TRouter, TRequest, TResponse> & {
   req: TRequest;
   res: TResponse;
   path: string;
-} & FastifyHandlerOptions<TRouter, TRequest, TResponse>;
+};
 
 export async function fastifyRequestHandler<
   TRouter extends AnyRouter,
   TRequest extends FastifyRequest,
   TResponse extends FastifyReply,
 >(opts: FastifyRequestHandlerOptions<TRouter, TRequest, TResponse>) {
-  const createContext = async function _createContext(): Promise<
-    inferRouterContext<TRouter>
-  > {
-    return opts.createContext?.(opts);
+  const createContext: ResolveHTTPRequestOptionsContextFn<TRouter> = async (
+    innerOpts,
+  ) => {
+    return await opts.createContext?.({
+      ...opts,
+      ...innerOpts,
+    });
   };
 
-  const query = opts.req.query
-    ? new URLSearchParams(opts.req.query as any)
-    : new URLSearchParams(opts.req.url.split('?')[1]);
+  const incomingMessage: NodeHTTPRequest = opts.req.raw;
 
-  const req: HTTPRequest = {
-    query,
-    method: opts.req.method,
-    headers: opts.req.headers,
-    body: opts.req.body ?? 'null',
-  };
+  // monkey-path body to the IncomingMessage
+  if ('body' in opts.req) {
+    incomingMessage.body = opts.req.body;
+  }
+  const req = incomingMessageToRequest(incomingMessage, opts.res.raw, {
+    maxBodySize: null,
+  });
 
-  const result = await resolveHTTPResponse({
+  const res = await resolveResponse({
+    ...opts,
     req,
+    error: null,
     createContext,
-    path: opts.path,
-    router: opts.router,
-    batching: opts.batching,
-    responseMeta: opts.responseMeta,
     onError(o) {
-      opts?.onError?.({ ...o, req: opts.req });
+      opts?.onError?.({
+        ...o,
+        req: opts.req,
+      });
     },
   });
 
-  const { res } = opts;
-
-  if ('status' in result && (!res.statusCode || res.statusCode === 200)) {
-    res.statusCode = result.status;
-  }
-  for (const [key, value] of Object.entries(result.headers ?? {})) {
-    if (typeof value === 'undefined') {
-      continue;
-    }
-
-    void res.header(key, value);
-  }
-  await res.send(result.body);
+  await opts.res.send(res);
 }

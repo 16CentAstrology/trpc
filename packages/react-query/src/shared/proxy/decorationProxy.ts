@@ -1,44 +1,35 @@
-import { AnyRouter } from '@trpc/server';
-import { createRecursiveProxy } from '@trpc/server/shared';
-import { getQueryKey } from '../../internals/getQueryKey';
-import { CreateReactQueryHooks } from '../hooks/createHooksInternal';
+import type { AnyRouter } from '@trpc/server/unstable-core-do-not-import';
+import { createRecursiveProxy } from '@trpc/server/unstable-core-do-not-import';
+import type { CreateReactQueryHooks } from '../hooks/createHooksInternal';
 
 /**
  * Create proxy for decorating procedures
  * @internal
  */
-export function createReactProxyDecoration<
+export function createReactDecoration<
   TRouter extends AnyRouter,
   TSSRContext = unknown,
->(name: string, hooks: CreateReactQueryHooks<TRouter, TSSRContext>) {
-  return createRecursiveProxy((opts) => {
-    const args = opts.args;
-
-    const pathCopy = [name, ...opts.path];
+>(hooks: CreateReactQueryHooks<TRouter, TSSRContext>) {
+  return createRecursiveProxy(({ path, args }) => {
+    const pathCopy = [...path];
 
     // The last arg is for instance `.useMutation` or `.useQuery()`
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const lastArg = pathCopy.pop()!;
 
-    // The `path` ends up being something like `post.byId`
-    const path = pathCopy.join('.');
     if (lastArg === 'useMutation') {
-      return (hooks as any)[lastArg](path, ...args);
+      return (hooks as any)[lastArg](pathCopy, ...args);
     }
-    const [input, ...rest] = args;
 
-    const queryKey = getQueryKey(path, input);
-    if (lastArg.startsWith('useSuspense')) {
-      const opts = rest[0] || {};
-      const fn =
-        lastArg === 'useSuspenseQuery' ? 'useQuery' : 'useInfiniteQuery';
-      const result = (hooks as any)[fn](queryKey, {
-        ...opts,
-        suspense: true,
-        enabled: true,
-      });
-      return [result.data, result];
+    if (lastArg === '_def') {
+      return {
+        path: pathCopy,
+      };
     }
-    return (hooks as any)[lastArg](queryKey, ...rest);
+
+    const [input, ...rest] = args;
+    const opts = rest[0] || {};
+
+    return (hooks as any)[lastArg](pathCopy, input, opts);
   });
 }

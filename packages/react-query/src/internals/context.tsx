@@ -1,46 +1,80 @@
-import {
+import type {
   CancelOptions,
   FetchInfiniteQueryOptions,
   FetchQueryOptions,
   InfiniteData,
   InvalidateOptions,
   InvalidateQueryFilters,
+  MutationOptions,
   QueryClient,
+  QueryFilters,
+  QueryKey,
   RefetchOptions,
   RefetchQueryFilters,
+  ResetOptions,
   SetDataOptions,
   Updater,
 } from '@tanstack/react-query';
-import {
+import type {
   TRPCClient,
   TRPCClientError,
   TRPCRequestOptions,
-  inferRouterProxyClient,
+  TRPCUntypedClient,
 } from '@trpc/client';
 import type {
+  AnyClientTypes,
   AnyRouter,
-  inferHandlerInput,
-  inferProcedureInput,
-  inferProcedureOutput,
-} from '@trpc/server';
-import { createContext } from 'react';
+  DistributiveOmit,
+} from '@trpc/server/unstable-core-do-not-import';
+import * as React from 'react';
+import type {
+  DefinedTRPCInfiniteQueryOptionsIn,
+  DefinedTRPCInfiniteQueryOptionsOut,
+  DefinedTRPCQueryOptionsIn,
+  DefinedTRPCQueryOptionsOut,
+  ExtractCursorType,
+  UndefinedTRPCInfiniteQueryOptionsIn,
+  UndefinedTRPCInfiniteQueryOptionsOut,
+  UndefinedTRPCQueryOptionsIn,
+  UndefinedTRPCQueryOptionsOut,
+} from '../shared';
+import type { TRPCMutationKey, TRPCQueryKey } from './getQueryKey';
 
-export interface TRPCFetchQueryOptions<TInput, TError, TOutput>
-  extends FetchQueryOptions<TInput, TError, TOutput>,
-    TRPCRequestOptions {}
+interface TRPCUseUtilsOptions {
+  /**
+   * tRPC-related options
+   */
+  trpc?: TRPCRequestOptions;
+}
+export interface TRPCFetchQueryOptions<TOutput, TError>
+  extends DistributiveOmit<FetchQueryOptions<TOutput, TError>, 'queryKey'>,
+    TRPCUseUtilsOptions {
+  //
+}
 
-export interface TRPCFetchInfiniteQueryOptions<TInput, TError, TOutput>
-  extends FetchInfiniteQueryOptions<TInput, TError, TOutput>,
-    TRPCRequestOptions {}
+export type TRPCFetchInfiniteQueryOptions<TInput, TOutput, TError> =
+  DistributiveOmit<
+    FetchInfiniteQueryOptions<
+      TOutput,
+      TError,
+      TOutput,
+      TRPCQueryKey,
+      ExtractCursorType<TInput>
+    >,
+    'queryKey' | 'initialPageParam'
+  > &
+    TRPCUseUtilsOptions & {
+      initialCursor?: ExtractCursorType<TInput>;
+    };
 
 /** @internal */
-export type SSRState = false | 'prepass' | 'mounting' | 'mounted';
+export type SSRState = 'mounted' | 'mounting' | 'prepass' | false;
 
-export interface ProxyTRPCContextProps<TRouter extends AnyRouter, TSSRContext> {
+export interface TRPCContextPropsBase<TRouter extends AnyRouter, TSSRContext> {
   /**
    * The `TRPCClient`
    */
-  client: TRPCClient<TRouter>;
+  client: TRPCUntypedClient<TRouter>;
   /**
    * The SSR context when server-side rendering
    * @default null
@@ -56,192 +90,261 @@ export interface ProxyTRPCContextProps<TRouter extends AnyRouter, TSSRContext> {
    */
   ssrState?: SSRState;
   /**
+   * @deprecated pass abortOnUnmount to `createTRPCReact` instead
    * Abort loading query calls when unmounting a component - usually when navigating to a new page
    * @default false
    */
   abortOnUnmount?: boolean;
 }
 
-export type DecoratedProxyTRPCContextProps<
+/**
+ * @internal
+ */
+export type DecoratedTRPCContextProps<
   TRouter extends AnyRouter,
   TSSRContext,
-> = ProxyTRPCContextProps<TRouter, TSSRContext> & {
-  client: inferRouterProxyClient<TRouter>;
+> = TRPCContextPropsBase<TRouter, TSSRContext> & {
+  client: TRPCClient<TRouter>;
 };
 
 export interface TRPCContextProps<TRouter extends AnyRouter, TSSRContext>
-  extends ProxyTRPCContextProps<TRouter, TSSRContext> {
+  extends TRPCContextPropsBase<TRouter, TSSRContext> {
   /**
    * The react-query `QueryClient`
    */
   queryClient: QueryClient;
 }
 
-export const contextProps: (keyof ProxyTRPCContextProps<any, any>)[] = [
+export const contextProps: (keyof TRPCContextPropsBase<any, any>)[] = [
   'client',
   'ssrContext',
   'ssrState',
   'abortOnUnmount',
 ];
 
-/** @internal */
+/**
+ * @internal
+ */
 export interface TRPCContextState<
   TRouter extends AnyRouter,
   TSSRContext = undefined,
-> extends Required<TRPCContextProps<TRouter, TSSRContext>> {
+> extends Required<TRPCContextProps<TRouter, TSSRContext>>,
+    TRPCQueryUtils<TRouter> {}
+
+/**
+ * @internal
+ */
+export interface TRPCQueryUtils<TRouter extends AnyRouter> {
   /**
-   * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientfetchquery
+   * @see https://tanstack.com/query/latest/docs/framework/react/reference/queryOptions#queryoptions
    */
-  fetchQuery<
-    TPath extends keyof TRouter['_def']['queries'] & string,
-    TProcedure extends TRouter['_def']['queries'][TPath],
-    TOutput extends inferProcedureOutput<TProcedure>,
-    TInput extends inferProcedureInput<TProcedure>,
-  >(
-    pathAndInput: [path: TPath, ...args: inferHandlerInput<TProcedure>],
-    opts?: TRPCFetchQueryOptions<TInput, TRPCClientError<TRouter>, TOutput>,
-  ): Promise<TOutput>;
-  /**
-   * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientfetchinfinitequery
-   */
-  fetchInfiniteQuery<
-    TPath extends keyof TRouter['_def']['queries'] & string,
-    TProcedure extends TRouter['_def']['queries'][TPath],
-    TOutput extends inferProcedureOutput<TProcedure>,
-    TInput extends inferProcedureInput<TProcedure>,
-  >(
-    pathAndInput: [path: TPath, ...args: inferHandlerInput<TProcedure>],
-    opts?: TRPCFetchInfiniteQueryOptions<
-      TInput,
-      TRPCClientError<TRouter>,
-      TOutput
+  queryOptions(
+    path: readonly string[], // <-- look into if needed
+    queryKey: TRPCQueryKey,
+    opts?: UndefinedTRPCQueryOptionsIn<
+      unknown,
+      unknown,
+      TRPCClientError<AnyClientTypes>
     >,
-  ): Promise<InfiniteData<TOutput>>;
-  /**
-   * @link https://react-query.tanstack.com/guides/prefetching
-   */
-  prefetchQuery<
-    TPath extends keyof TRouter['_def']['queries'] & string,
-    TProcedure extends TRouter['_def']['queries'][TPath],
-    TOutput extends inferProcedureOutput<TProcedure>,
-    TInput extends inferProcedureInput<TProcedure>,
-  >(
-    pathAndInput: [path: TPath, ...args: inferHandlerInput<TProcedure>],
-    opts?: TRPCFetchQueryOptions<TInput, TRPCClientError<TRouter>, TOutput>,
-  ): Promise<void>;
+  ): UndefinedTRPCQueryOptionsOut<
+    unknown,
+    unknown,
+    TRPCClientError<AnyClientTypes>
+  >;
+  queryOptions(
+    path: readonly string[], // <-- look into if needed
+    queryKey: TRPCQueryKey,
+    opts: DefinedTRPCQueryOptionsIn<
+      unknown,
+      unknown,
+      TRPCClientError<AnyClientTypes>
+    >,
+  ): DefinedTRPCQueryOptionsOut<
+    unknown,
+    unknown,
+    TRPCClientError<AnyClientTypes>
+  >;
 
   /**
-   * @link https://tanstack.com/query/v4/docs/reference/QueryClient#queryclientprefetchinfinitequery
+   * @see https://tanstack.com/query/latest/docs/framework/react/reference/infiniteQueryOptions#infinitequeryoptions
    */
-  prefetchInfiniteQuery<
-    TPath extends keyof TRouter['_def']['queries'] & string,
-    TProcedure extends TRouter['_def']['queries'][TPath],
-    TOutput extends inferProcedureOutput<TProcedure>,
-    TInput extends inferProcedureInput<TProcedure>,
-  >(
-    pathAndInput: [path: TPath, ...args: inferHandlerInput<TProcedure>],
-    opts?: TRPCFetchInfiniteQueryOptions<
-      TInput,
-      TRPCClientError<TRouter>,
-      TOutput
+  infiniteQueryOptions(
+    path: readonly string[], // <-- look into if needed
+    queryKey: TRPCQueryKey,
+    opts: UndefinedTRPCInfiniteQueryOptionsIn<
+      unknown,
+      unknown,
+      unknown,
+      TRPCClientError<AnyClientTypes>
     >,
-  ): Promise<void>;
+  ): UndefinedTRPCInfiniteQueryOptionsOut<
+    unknown,
+    unknown,
+    unknown,
+    TRPCClientError<AnyClientTypes>
+  >;
+  infiniteQueryOptions(
+    path: readonly string[], // <-- look into if needed
+    queryKey: TRPCQueryKey,
+    opts: DefinedTRPCInfiniteQueryOptionsIn<
+      unknown,
+      unknown,
+      unknown,
+      TRPCClientError<AnyClientTypes>
+    >,
+  ): DefinedTRPCInfiniteQueryOptionsOut<
+    unknown,
+    unknown,
+    unknown,
+    TRPCClientError<AnyClientTypes>
+  >;
 
   /**
-   * @link https://react-query.tanstack.com/guides/query-invalidation
+   * @see https://tanstack.com/query/v5/docs/reference/QueryClient#queryclientfetchquery
    */
-  invalidateQueries<
-    TPath extends keyof TRouter['_def']['queries'] & string,
-    TInput extends inferProcedureInput<TRouter['_def']['queries'][TPath]>,
-  >(
-    pathAndInput?: [TPath, TInput?] | TPath,
+  fetchQuery: (
+    queryKey: TRPCQueryKey,
+    opts?: TRPCFetchQueryOptions<unknown, TRPCClientError<TRouter>>,
+  ) => Promise<unknown>;
+  /**
+   * @see https://tanstack.com/query/v5/docs/reference/QueryClient#queryclientfetchinfinitequery
+   */
+  fetchInfiniteQuery: (
+    queryKey: TRPCQueryKey,
+    opts?: TRPCFetchInfiniteQueryOptions<
+      unknown,
+      unknown,
+      TRPCClientError<TRouter>
+    >,
+  ) => Promise<InfiniteData<unknown, unknown>>;
+  /**
+   * @see https://tanstack.com/query/v5/docs/framework/react/guides/prefetching
+   */
+  prefetchQuery: (
+    queryKey: TRPCQueryKey,
+    opts?: TRPCFetchQueryOptions<unknown, TRPCClientError<TRouter>>,
+  ) => Promise<void>;
+
+  /**
+   * @see https://tanstack.com/query/v5/docs/reference/QueryClient#queryclientprefetchinfinitequery
+   */
+  prefetchInfiniteQuery: (
+    queryKey: TRPCQueryKey,
+    opts?: TRPCFetchInfiniteQueryOptions<
+      unknown,
+      unknown,
+      TRPCClientError<TRouter>
+    >,
+  ) => Promise<void>;
+
+  /**
+   * @see https://tanstack.com/query/v5/docs/reference/QueryClient#queryclientensurequerydata
+   */
+  ensureQueryData: (
+    queryKey: TRPCQueryKey,
+    opts?: TRPCFetchQueryOptions<unknown, TRPCClientError<TRouter>>,
+  ) => Promise<unknown>;
+
+  /**
+   * @see https://tanstack.com/query/v5/docs/framework/react/guides/query-invalidation
+   */
+  invalidateQueries: (
+    queryKey: TRPCQueryKey,
     filters?: InvalidateQueryFilters,
     options?: InvalidateOptions,
-  ): Promise<void>;
-  /**
-   * @link https://react-query.tanstack.com/guides/query-invalidation
-   */
-  invalidateQueries(
-    filters?: InvalidateQueryFilters,
-    options?: InvalidateOptions,
-  ): Promise<void>;
+  ) => Promise<void>;
 
   /**
-   * @link https://react-query.tanstack.com/reference/QueryClient#queryclientrefetchqueries
+   * @see https://tanstack.com/query/v5/docs/reference/QueryClient#queryclientresetqueries
    */
-  refetchQueries<
-    TPath extends keyof TRouter['_def']['queries'] & string,
-    TInput extends inferProcedureInput<TRouter['_def']['queries'][TPath]>,
-  >(
-    pathAndInput: [TPath, TInput?],
-    filters?: RefetchQueryFilters,
-    options?: RefetchOptions,
-  ): Promise<void>;
-  /**
-   * @link https://react-query.tanstack.com/reference/QueryClient#queryclientrefetchqueries
-   */
-  refetchQueries(
-    filters?: RefetchQueryFilters,
-    options?: RefetchOptions,
-  ): Promise<void>;
+  resetQueries: (
+    queryKey: TRPCQueryKey,
+    filters?: QueryFilters,
+    options?: ResetOptions,
+  ) => Promise<void>;
 
   /**
-   * @link https://react-query.tanstack.com/guides/query-cancellation
+   * @see https://tanstack.com/query/v5/docs/reference/QueryClient#queryclientrefetchqueries
    */
-  cancelQuery<
-    TPath extends keyof TRouter['_def']['queries'] & string,
-    TInput extends inferProcedureInput<TRouter['_def']['queries'][TPath]>,
-  >(
-    pathAndInput: [TPath, TInput?],
+  refetchQueries: (
+    queryKey: TRPCQueryKey,
+    filters?: RefetchQueryFilters,
+    options?: RefetchOptions,
+  ) => Promise<void>;
+
+  /**
+   * @see https://tanstack.com/query/v5/docs/framework/react/guides/query-cancellation
+   */
+  cancelQuery: (
+    queryKey: TRPCQueryKey,
     options?: CancelOptions,
-  ): Promise<void>;
+  ) => Promise<void>;
+
   /**
-   * @link https://react-query.tanstack.com/reference/QueryClient#queryclientsetquerydata
+   * @see https://tanstack.com/query/v5/docs/reference/QueryClient#queryclientsetquerydata
    */
-  setQueryData<
-    TPath extends keyof TRouter['_def']['queries'] & string,
-    TInput extends inferProcedureInput<TRouter['_def']['queries'][TPath]>,
-    TOutput extends inferProcedureOutput<TRouter['_def']['queries'][TPath]>,
-  >(
-    pathAndInput: [TPath, TInput?],
-    updater: Updater<TOutput | undefined, TOutput | undefined>,
+  setQueryData: (
+    queryKey: TRPCQueryKey,
+    updater: Updater<unknown, unknown>,
     options?: SetDataOptions,
-  ): void;
+  ) => void;
+
   /**
-   * @link https://react-query.tanstack.com/reference/QueryClient#queryclientgetquerydata
+   * @see https://tanstack.com/query/v5/docs/reference/QueryClient#queryclientsetqueriesdata
    */
-  getQueryData<
-    TPath extends keyof TRouter['_def']['queries'] & string,
-    TInput extends inferProcedureInput<TRouter['_def']['queries'][TPath]>,
-    TOutput extends inferProcedureOutput<TRouter['_def']['queries'][TPath]>,
-  >(
-    pathAndInput: [TPath, TInput?],
-  ): TOutput | undefined;
+  setQueriesData: (
+    queryKey: TRPCQueryKey,
+    filters: QueryFilters,
+    updater: Updater<unknown, unknown>,
+    options?: SetDataOptions,
+  ) => [QueryKey, unknown][];
+
   /**
-   * @link https://react-query.tanstack.com/reference/QueryClient#queryclientsetquerydata
+   * @see https://tanstack.com/query/v5/docs/reference/QueryClient#queryclientgetquerydata
    */
-  setInfiniteQueryData<
-    TPath extends keyof TRouter['_def']['queries'] & string,
-    TInput extends inferProcedureInput<TRouter['_def']['queries'][TPath]>,
-    TOutput extends inferProcedureOutput<TRouter['_def']['queries'][TPath]>,
-  >(
-    pathAndInput: [TPath, TInput?],
+  getQueryData: (queryKey: TRPCQueryKey) => unknown;
+
+  /**
+   * @see https://tanstack.com/query/v5/docs/reference/QueryClient#queryclientsetquerydata
+   */
+  setInfiniteQueryData: (
+    queryKey: TRPCQueryKey,
     updater: Updater<
-      InfiniteData<TOutput> | undefined,
-      InfiniteData<TOutput> | undefined
+      InfiniteData<unknown> | undefined,
+      InfiniteData<unknown> | undefined
     >,
     options?: SetDataOptions,
-  ): void;
-  /**
-   * @link https://react-query.tanstack.com/reference/QueryClient#queryclientgetquerydata
-   */
-  getInfiniteQueryData<
-    TPath extends keyof TRouter['_def']['queries'] & string,
-    TInput extends inferProcedureInput<TRouter['_def']['queries'][TPath]>,
-    TOutput extends inferProcedureOutput<TRouter['_def']['queries'][TPath]>,
-  >(
-    pathAndInput: [TPath, TInput?],
-  ): InfiniteData<TOutput> | undefined;
-}
+  ) => void;
 
-export const TRPCContext = createContext(null as any);
+  /**
+   * @see https://tanstack.com/query/v5/docs/reference/QueryClient#queryclientgetquerydata
+   */
+  getInfiniteQueryData: (
+    queryKey: TRPCQueryKey,
+  ) => InfiniteData<unknown> | undefined;
+
+  /**
+   * @see https://tanstack.com/query/latest/docs/reference/QueryClient/#queryclientsetmutationdefaults
+   */
+  setMutationDefaults: (
+    mutationKey: TRPCMutationKey,
+    options:
+      | MutationOptions
+      | ((args: {
+          canonicalMutationFn: (input: unknown) => Promise<unknown>;
+        }) => MutationOptions),
+  ) => void;
+
+  /**
+   * @see https://tanstack.com/query/latest/docs/reference/QueryClient#queryclientgetmutationdefaults
+   */
+  getMutationDefaults: (
+    mutationKey: TRPCMutationKey,
+  ) => MutationOptions | undefined;
+
+  /**
+   * @see https://tanstack.com/query/latest/docs/reference/QueryClient#queryclientismutating
+   */
+  isMutating: (filters: { mutationKey: TRPCMutationKey }) => number;
+}
+export const TRPCContext = React.createContext?.(null as any);
